@@ -22,7 +22,7 @@ class PostService
 {
     public function getAllPosts(array $filters = [])
     {
-        $query = Post::with(['user', 'tags'])
+        $query = Post::active()->with(['user', 'tags'])
             ->withCount(['comments', 'likes'])
             ->latest();
 
@@ -50,7 +50,7 @@ class PostService
 
     public function getPostById(int $id): Post
     {
-        $post = Post::with(['user', 'tags', 'comments.user'])
+        $post = Post::active()->with(['user', 'tags', 'comments.user'])
             ->withCount(['comments', 'likes'])
             ->findOrFail($id);
 

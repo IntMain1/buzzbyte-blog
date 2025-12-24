@@ -7,6 +7,7 @@ use App\Http\Requests\CreatePostRequest;
 use App\Http\Requests\UpdatePostRequest;
 use App\Models\Post;
 use App\Services\PostService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
@@ -197,6 +198,11 @@ class PostController extends Controller
     private function errorResponse(string $message, \Exception $e): JsonResponse
     {
         $statusCode = 500;
+
+        if ($e instanceof ModelNotFoundException) {
+            $statusCode = 404;
+            $message = 'Post not found';
+        }
 
         logger()->error($message, [
             'exception' => $e->getMessage(),

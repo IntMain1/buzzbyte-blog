@@ -63,6 +63,12 @@ class Post extends Model
         return $query->where('created_at', '<=', now()->subHours(24));
     }
 
+    // Posts younger than 24 hours (Active)
+    public function scopeActive($query)
+    {
+        return $query->where('created_at', '>', now()->subHours(24));
+    }
+
     public function getIsExpiringSoonAttribute(): bool
     {
         return $this->created_at->addHours(24)->diffInHours(now()) < 2;

@@ -244,7 +244,7 @@ Copy `.env.example` to `.env` in the backend folder. Key variables:
 **Omar Tarek** - Sole Developer
 
 ## �📄 License
-
+MIT
 
 ## 📐 System Architecture
 

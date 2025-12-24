@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
- * Tests for the DeleteExpiredPostsJob
- * Verifies that posts older than 24 hours are soft-deleted correctly
+ * Tests for the DeleteExpiredPostsJob and API Visibility
+ * Verifies that posts older than 24 hours are soft-deleted correctly AND hidden from API
  */
 class ExpiredPostsTest extends TestCase
 {
@@ -160,5 +160,45 @@ class ExpiredPostsTest extends TestCase
                 'deleted_at' => null,
             ]);
         }
+    }
+
+    /**
+     * Test that expired posts are hidden from API response via scopeActive
+     * even if they haven't been deleted by the job yet.
+     */
+    public function test_expired_posts_are_hidden_from_api_even_if_not_deleted(): void
+    {
+        $user = User::factory()->create();
+        $tag = Tag::factory()->create();
+        $this->actingAs($user);
+
+        // Create an expired post (25 hours old) - NOT deleted
+        $expiredPost = Post::factory()->for($user)->create([
+            'created_at' => now()->subHours(25),
+            'title' => 'Expired Post Title',
+        ]);
+        $expiredPost->tags()->attach($tag);
+
+        // Create a fresh post
+        $freshPost = Post::factory()->for($user)->create([
+            'created_at' => now()->subHours(1),
+            'title' => 'Fresh Post Title',
+        ]);
+        $freshPost->tags()->attach($tag);
+
+        // Query the API
+        $response = $this->getJson('/api/posts');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data') // Should only see 1 post
+            ->assertJsonFragment(['title' => 'Fresh Post Title'])
+            ->assertJsonMissing(['title' => 'Expired Post Title']);
+            
+        // Also verify individual get
+        $this->getJson("/api/posts/{$expiredPost->id}")
+            ->assertStatus(404); // Should be 404 Not Found
+            
+        $this->getJson("/api/posts/{$freshPost->id}")
+            ->assertStatus(200);
     }
 }
