@@ -260,12 +260,5 @@ Copy `.env.example` to `.env` in the backend folder. Key variables:
 ### Database Schema (ERD)
 ![Database Schema](DOCS/systemdesign/ERD.png)
 
-## 🖥️ UI Screenshots
-
-| Desktop | Mobile |
-|---------|--------|
-| ![Feed Desktop](DOCS/screens/FeedScreenDesktop.png) | ![Feed Mobile](DOCS/screens/FeedScreenMobile.png) |
-| ![Login Desktop](DOCS/screens/loginScreenDesktop.png) | ![Login Mobile](DOCS/screens/loginScreenMobile.png) |
-| ![Post View](DOCS/screens/PostViewDesktop.png) | ![Create Post](DOCS/screens/createPostDesktop.png) |
 
 
