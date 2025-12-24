@@ -1,0 +1,155 @@
+# BuzzByte Blog Application - Docker Compose
+# Run with: docker-compose up
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8
+    container_name: buzzbyte_mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-buzzbyte}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_USER: ${DB_USERNAME:-buzzbyte}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - buzzbyte
+
+  # Redis for Queues
+  redis:
+    image: redis:7-alpine
+    container_name: buzzbyte_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - buzzbyte
+
+  # Laravel Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: buzzbyte_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - APP_NAME=BuzzByte
+      - APP_ENV=${APP_ENV:-local}
+      - APP_KEY=${APP_KEY:-base64:uK4hcBAf2Sbim5uZ+rPPGDuM0iNfxXXAJ6prdiuplVQ=}
+      - APP_DEBUG=${APP_DEBUG:-true}
+      - APP_URL=http://localhost:8000
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-buzzbyte}
+      - DB_USERNAME=${DB_USERNAME:-buzzbyte}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QUEUE_CONNECTION=redis
+      - CACHE_DRIVER=redis
+      - RUN_MIGRATIONS=true
+    volumes:
+      - ./backend:/var/www/html
+      - /var/www/html/vendor
+    networks:
+      - buzzbyte
+
+  # Queue Worker (for scheduled post deletion)
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: buzzbyte_worker
+    restart: unless-stopped
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    depends_on:
+      - backend
+    environment:
+      - APP_ENV=production
+      - APP_KEY=${APP_KEY:-base64:uK4hcBAf2Sbim5uZ+rPPGDuM0iNfxXXAJ6prdiuplVQ=}
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-buzzbyte}
+      - DB_USERNAME=${DB_USERNAME:-buzzbyte}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+      - REDIS_HOST=redis
+      - QUEUE_CONNECTION=redis
+      - CACHE_DRIVER=redis
+      - RUN_MIGRATIONS=false
+    volumes:
+      - ./backend:/var/www/html
+      - /var/www/html/vendor
+    networks:
+      - buzzbyte
+
+  # Scheduler (runs cron jobs - hourly post cleanup)
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: buzzbyte_scheduler
+    restart: unless-stopped
+    command: php artisan schedule:work
+    depends_on:
+      - backend
+    environment:
+      - APP_ENV=production
+      - APP_KEY=${APP_KEY:-base64:uK4hcBAf2Sbim5uZ+rPPGDuM0iNfxXXAJ6prdiuplVQ=}
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-buzzbyte}
+      - DB_USERNAME=${DB_USERNAME:-buzzbyte}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+      - REDIS_HOST=redis
+      - CACHE_DRIVER=redis
+      - RUN_MIGRATIONS=false
+    volumes:
+      - ./backend:/var/www/html
+      - /var/www/html/vendor
+    networks:
+      - buzzbyte
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: buzzbyte_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - buzzbyte
+
+networks:
+  buzzbyte:
+    driver: bridge
+
+volumes:
+  mysql_data:
